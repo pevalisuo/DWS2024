@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <title>Delta Winter School 2024</title>
+    <link rel="shortcut icon" href="./favicon.ico" />
+    <link rel="stylesheet" href="./dist/reset.css" />
+    <link rel="stylesheet" href="./dist/reveal.css" />
+    <link rel="stylesheet" href="./dist/theme/moon.css" id="theme" />
+    <link rel="stylesheet" href="./css/highlight/base16/zenburn.css" />
+
+
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides"><section  data-markdown><script type="text/template">
+
+
+## Delta Winter School 2024 <!-- .element style="color: orange;" -->
+### Robust state estimation using Factor Graphs applied to positioning <!-- .element style="color: black;" -->
+
+.
+
+.
+
+.
+
+.
+
+
+![](figures/uwlogo_darker.svg)<!-- .element style="width: 300px" -->
+
+<!-- .slide: data-background="figures/Ruka_white.jpg" -->
+    </script></section><section ><section data-markdown><script type="text/template">
+## Contents
+
+<div id=medium>
+
+ - State estimation applications  
+ - Methods and robustness
+ - Factor graph
+ - Case example
+
+</div>
+
+<!-- .slide: data-background="figures/tausta_tunturi.png" -->
+
+</script></section><section data-markdown><script type="text/template">
+State observer or state estimator is a system that provides an estimate of the internal state of a given real system, from measurements of the input and output of the real system.
+
+<div id=left>
+
+Linear system 
+
+$$\begin{align}%
+    x_{k+1} =& \mathbf{A} x_k + \mathbf{B} u_k \\\ %
+    y_k=&\mathbf{C} x_k + \mathbf{D} u_k%
+\end{align}$$
+
+</div>
+
+<div id=right>
+
+Non-linear system
+
+$$\begin{align}
+    x_{k+1} = f(x_k) + B(x_k) u_k \\\ %
+    y_k= h(x_k) 
+\end{align}$$
+
+</div>
+
+
+<div id=medium>
+    
+$x$ is the state, $y$ is the 
+measurement (observation) and $u$ is the 
+input. $f()$ and $h()$ are dynamic and observation functions.
+
+</div> 
+</script></section><section data-markdown><script type="text/template">
+### Induction motor state estimation
+
+<div id="fleft">
+
+![Motor](figures/induction_motor.jpg)<!-- .element style="width: 700px" -->
+
+</div>
+
+<div id=fright>
+
+ - Inputs
+   - Current
+   - Voltage
+ - Outputs 
+   - Torque
+   - Speed
+   - Temperature 
+   - Noise and vibration
+   - Current
+   - Magnetic field
+
+</div> 
+
+</script></section><section data-markdown><script type="text/template">
+### Induction Motor state estimation
+
+Typical uses for sate estimation: <!-- .element style="text-align:left;"-->
+
+1. Fault diagnostics (FD)
+   - Bearings, Windings, Rotor, Shaft, Stator, Power electronics, Gears
+1. Condition monitoring (CM)
+1. Performance optimization (PO)
+
+<div id=references>
+
+<br>R. R. Kumar, M. Andriollo, G. Cirrincione, M. Cirrincione, and A. Tortella, “A Comprehensive Review of Conventional and Intelligence-Based Approaches for the Fault Diagnosis and Condition Monitoring of Induction Motors,” Energies, vol. 15, no. 23, Art. no. 23, Jan. 2022, doi: 10.3390/en15238938.
+
+</div>
+
+</script></section><section data-markdown><script type="text/template">
+### Diesel engine monitoring and control
+
+
+
+<div id=left>
+    
+![W32](figures/wartsila-32-methanol-engine.png)
+
+</div>
+
+<div id=right>
+
+  - Observe noise and vibrations, cylincder pressure, injector current and rail pressure, etc. 
+  - Estimate combustion noise, mechanical noise, injector noise, 
+  - Fault diagnostics
+  - Combustion noise control
+  - Tuning the engine for new fuels, like hydrogen and ammonia
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Smart grids
+
+- The supervisory control and protection requires reliable state estimation.
+- Sate estimation is challenged by noise, measurement sparsity, sensor errors, and cyber attacks.
+- The purpose of the robust state estimation is to estimate the value of the needed variables with high confidence, despite noise and outliers.
+- Provides also resilience over cyber attacks
+</script></section><section data-markdown><script type="text/template">
+### Smart grid state estimation
+
+<div id=fleft>
+
+![FG example](figures/fg_example.png)
+
+</div>
+
+<div id=fright>
+    
+ - State variables
+	- Voltages, $v_i$
+	- Currents, $i_i$
+	- Phases, $\phi_i$
+	- active and reactive power flows, $p_i$, $q_i$
+ - Status information
+	- Switch status
+
+</div>
+
+<div id=references>
+
+T. Ritmeester and H. Meyer-Ortmanns, “Belief propagation for supply networks: efficient clustering of their factor graphs,” Eur. Phys. J. B, vol. 95, no. 5, p. 89, May 2022, doi: 10.1140/epjb/s10051-022-00336-7.
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Robot positioning
+
+![robot track](figures/TB_robot_track.svg)
+</script></section><section data-markdown><script type="text/template">
+### How robot sees the lab with Lidar using SLAM
+
+![omron](figures/robot_view.png)<!-- .element style="width: 700px" -->
+</script></section><section data-markdown><script type="text/template">
+### Position Observables
+
+- Ranges from the radio based positioning systems
+- Signal strength or channel status information
+- Acceleration from IMU
+- Odometry readings
+- Images
+- Lidar / Radar ranges
+
+Goals:
+- Estimate the precise position of the mobile robot, car, pedestrian or other item
+</script></section></section><section ><section data-markdown><script type="text/template">
+# State estimation methods
+</script></section><section data-markdown><script type="text/template">
+### LMS solution
+
+<div id=medium>
+
+TOA solution can be found with the following way: 
+
+$$ k_{i}=x_{i}^{2}+ y_{i}^{2} +z_{i}^{2},(i=1,2,\ldots,n) \qquad {\bf t}=[x\quad y\quad z]^{T}$$
+
+$${\bf A}=\left[\matrix{x_{2} -x_{1} & y_{2} -y_{1} & z_{2} -z_{1}\cr x_{3}-x_{1} & y_{3}-y_{1} & z_{3}-z_{1} & \cr & \cdots \cr x_{n}-x_{1} & y_{n} -y_{1} & z_{n}-z_{1} }\right], {\bf b}=\left[\matrix{m_{1}^{2} & -m_{2}^{2}+k_{2}-k_{1}\cr m_{1}^{2} & -m_{3}^{2}+k_{3}-k_{1}\cr & \cdots\cr m_{1}^{2} & -m_{n}^{2}+k_{n}-k_{1}}\right]$$
+
+Solution is $ \quad {\bf t}=\frac{1}{2}({\bf A}^{T}{\bf A})^{-1}{\bf A}^{T}{\bf b} $ 
+
+Weighted solution: 
+$\quad {\bf t}=\frac{1}{2}(\mathbf{A}^{T}{\mathbf{W}}\mathbf{A})^{-1}\mathbf{A}^{T}\mathbf{W}\mathbf{b} $
+
+</div>
+
+<div id=references>
+
+[1] G. Shen, R. Zetik, and R. S. Thoma, “Performance comparison of TOA and TDOA based location estimation algorithms in LOS environment,” in Navigation and Communication 2008 5th Workshop on Positioning, Mar. 2008, pp. 71–78. doi: 10.1109/WPNC.2008.4510359.
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Bayesian methods
+
+<div id=median>
+
+- If the system is well known, the output can be predicted from the input, i.e.: $p(y|x)$ is known. (Predictive inference)
+- But we need to estimate $x$ when based on measurements $y$. This can be done utilizing Bayesian rule (diagnostics inference)
+
+$$
+   p(x|y) = \frac{p(y|x) p(x) }{p(y)} 
+$$
+
+$$ \mathrm{Posterior} = \frac{\mathrm{Likelihood} \cdot \mathrm{prior}}{\mathrm{evidence}} $$
+
+- Typical Bayesian methods are: Kalman filters, Particle filters, Markov models, Bayesian belief networks and Factor Graphs
+
+</div>
+
+</script></section><section data-markdown><script type="text/template">
+### Bayesian estimation
+
+
+<div id=left>
+
+![Bayes](figures/bayes.svg)<!-- .element style="width: 600px" -->
+
+</div>
+
+<div id=right>
+
+ - Recursive or iterative
+ - Predict the next state using for example system dynamics, $f()$.
+ - Updates the state using the measured information of observable variables
+ - Keeps the system covariance, $P$, up to date, to decide how much weight each variable deservers
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Kalman filter
+
+<div id=small>
+    
+1. Initialization:
+    - $\hat{X_{0}},P_{0}^{-},Q_{0}, R_{0}$ 
+1. Prediction:
+    - Prior estimate of the state: $m_{k}^{-}=f(m_{k-1},k-1)$
+	- Prior estimate of the covariance:
+	- $P_{k}^{-}=F_{x}(m_{k-1},k-1)P_{k-1}{F_{x}}^{T}(m_{k-1},k-1)+Q_{k-1}$
+1. Update step
+    - Measurement residual update: $V_{k}=y_{k}-h(m_{k}^{-},k)$
+	- Measurement covariance update:
+    - $S_{k}=H_{x}(m_{k}^{-},k) P_{k}^{-} {H_{x}}^{T}(m_{k}^{-},k)+R_{k}$
+	- Kalman gain calculation:
+    - $K_{k}=P_{k}^{-}\ {H_{x}}^{T}(m_{k}^{-},k)\ S_{k}^{-1}$
+	- Updating the posterior state: $m_{k}=m_{k}^{-}+K_{k}V_{k}$
+    - Updating the posterior covariance: $P_{k}=P_{k}^{-}-K_{k}S_{k}K_{k}^{T}$
+1. Return to step 1, repeat for $k$ positioning steps.
+1. Output
+    - Estimated state vector: $\hat{X}$
+      
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Particle filter
+
+<div id=medium>
+    
+1. Initialization:
+    - $x^i_0 \sim p_{x_0} \qquad ,i=1,\ldots,N $
+1. Prediction:
+    - Prior estimate of the particle positions: 
+	- $x^i_k := f(x^i_{k-1}, k-1)$   
+1. Update step
+    - Update particle weights:
+    - $w^i_k = w^i_{k-1}p_e(y_k-h(x^i_k))$
+    - Resample: Take N particles from set $\{x^i_k\}^N_{i=1}$ so that the probability to select each sample is $w^i_k$.
+1. Return to step 2 repeat for $k$ positioning steps.
+1. Output
+	- State vector estimate: $\bar{x}=\sum_{i=1}^N (w^ix^i)$
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+## Graphical models</script></section><section data-markdown><script type="text/template">
+### Bayes net
+
+![bayes](figures/bayes_net.svg)<!-- .element style="width: 600px" -->
+
+<div id="medium">
+
+- In general joint probability $p(\mathbf{x})=p(x_1, x_2, x_3, x_4)$
+- Utilization of independence allows factorized calculation of joint distribution $p(\mathbf{x})$.
+
+$p(\mathbf{x}) = p(x_1) \cdot p(x_2) \cdot p(x_3) \cdot p(x_4|x_1,x_2,x_3)$
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+
+### Hidden Markov Model
+
+![hmm](figures/hmm.svg)<!-- .element style="width: 600px" -->
+
+<div id="medium">
+
+ - Prior: $P(x_1)$
+ - State transition probability: $P(x_{i+1}|x_i)$
+ - Measurement / observation probability: $P(y_i|x_i)$
+
+$$p(\mathbf{x,y})=p(x_1)\prod_{i=1}^{N-1} p(x_{i+1}|x_i) \prod_{i=1}^{N} p(y_i|x_i)$$
+
+ 
+</div>
+ </script></section><section data-markdown><script type="text/template">
+
+
+
+### Factor Graph (FG)
+
+ - FG is a relatively new method for state estimation.
+ - It improves the robustness for two reasons
+
+	1. It can probabilistically combine network topological information to the measurements.
+	1. The iterative solution allows using using <span id=bright> robust</span> loss functions such as Huber's or Tukey's.
+ 
+ - We will use a generic robust loss function, which can be smoothly adjusted from LMS shape to robust Huber and Tukey forms.
+ </script></section><section data-markdown><script type="text/template">
+
+
+### Factor Graph
+
+![fg](figures/factorgraph.svg)<!-- .element style="width: 700px" -->
+
+<div id="medium">
+
+ - Generalized (in)depency model which can describe Bayesian networks, Markov chains Kalman filter and much more
+ - Allows factorized calculation of joint probability density
+
+$$  \begin{aligned}
+     &f(x_1,x_2,x_3)=\prod f_i(x_i) \\\\
+      & = f_1(x1) f_5(x_1) f_2(x_1,x_2) f_6(x_2) f_3(x_2,x_3) f_4(x_3) f_7(x_3)
+    \end{aligned}
+$$
+
+ 
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Factor graph for positioning 
+
+
+![fgkuva](figures/fg.svg)<!-- .element style="width: 700px" -->
+
+
+<div id=medium>
+
+  - The FG is used for estimating state variables, marked as circles
+  - The factors (rectangles) are probabilistic constraints, such as measurements, which are  represented as functions, returning the probability of the observation.
+  - The factors between state variables represent their mutual dependencies
+ 
+</div>
+</script></section></section><section ><section data-markdown><script type="text/template">
+# Robustness
+</script></section><section data-markdown><script type="text/template">
+### Outlier?
+
+![Out lier](figures/out_lier.png) <!-- .element class="fragment" -->
+</script></section><section data-markdown><script type="text/template">
+
+### Why we need robust methods?
+
+<div id=medium>
+
+- Errors are not always nice Gaussian noise.
+- Sensor data may include also outliers, due to various reasons:
+    - Sensor or programming fault
+    - Exceptional sonditions: NLOS, and multipath propagation, ...
+    - Novel event! 
+- Detection
+    - Z-score, RAIM, Isolation forest, ...
+- Handling
+    - RANSAC
+    - Robust statistics
+
+</div>
+ </script></section><section data-markdown><script type="text/template">
+
+### Detection
+
+<div id=medium>
+
+- Z-score: A value is an outlier if it far from the center
+
+$$ z = \frac{x-\mu}{\sigma} $$
+  
+- Robust score: The same but robust
+
+$$r_z = \frac{x-\mathrm{Med}(x)}{\mathrm{IQR}(x)} $$
+  
+- RAIM, Receiver autonomous integrity monitoring: $\nu$ is the residuals vector, $n$ is the degrees of freedom and $m$ is number of measurements. The significance level of the $\chi^2$ is often $\alpha=0.001$. 
+
+$$ \frac{\nu^T\nu}{m-n-1}<\chi_\alpha^2(m-n-1) $$
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### RANSAC
+
+<div id=medium>
+
+ - Random sample consensus is an iterative method to find out a concensus set of inliners
+
+1. Select a minimum random subset of variables and fit the model using this subset
+1. Other varibles are added as long as they do not look like outliers
+2. The expanded model is called as the consensus set
+3. The process can be repeated until good enough model is obtained
+
+</div>
+   </script></section><section data-markdown><script type="text/template">
+### M-estimators
+
+<div id=medium>
+
+Maximum likelihood estimators.
+
+$$\hat{\mu_M} = \underset{\mu}{\mathrm{argmin}} \sum_{i=1}^n \rho(x_i-\mu)$$
+
+
+If $\rho$ is differentiable with $\psi = \rho'$, then $\hat{\mu}_M$ satisfies:
+
+$$\sum_{i=1}^n \psi(x_i - \hat{\mu}_M)=0$$
+
+- $\rho$ is the loss function of the estimator, in LMS case $\rho(x) = 1/2 x^2$ 
+- The influence function, $\psi$, measures how the estimate changes when contamination is added in x. For lms case $\psi(x) = x$
+
+
+[Robust Statistics, Peter Rousseeuw](https://cseweb.ucsd.edu/~slovett/workshops/robust-statistics-2019/slides/donoho-univariate.pdf)
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+###  Robust loss function
+
+<div id=fleft>
+
+![Influence](figures/lmstukey.svg) 
+
+</div> 
+
+<div id=fright>
+
+$$  \rho_\mathrm{lms} = \frac{1}{2} (\hat{x}-x)^2 $$
+
+$$ \psi_\mathrm{lms}=\frac{d}{dx} \rho_\mathrm{lms} = x $$
+
+$$\rho_\mathrm{tk}= 1-e^{\left(-\frac{1}{2}(\frac{x}{c})^2\right)}$$
+
+$$\psi_\mathrm{tk}=\frac{d}{dx} \rho_\mathrm{tk} = \frac{x}{c^2} e^{\left( -\frac{1}{2}(\frac{x}{c})^2\right)}$$
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+
+
+### Generic, robust loss and influence functions
+
+<div id="small">
+
+\begin{equation}
+        \rho(x,\alpha,c)=\begin{cases}
+                \frac{1}{2}(x/c)^2            & \mathrm{if} ~\alpha=2 \\\ 
+                \log\left(\frac{1}{2}(x/c)^2+1\right)    & \mathrm{if} ~\alpha=0\\\ 
+                1-\exp (-\frac{1}{2}(x/c)^2   & \mathrm{if} ~\alpha=-\infty  \\\ 
+                \frac{|\alpha-2|}{\alpha} \left( \left(\frac{(x/c)^2}{|\alpha-2|}+1\right)^{\alpha/2}-1\right)   & \mathrm{otherwise} 
+        \end{cases},
+        \label{eq:robust_loss}
+\end{equation}
+
+</div>
+
+<div id="left">
+
+![Influence](figures/influence-short.svg) 
+
+</div>
+
+<div id="right" style="font-size: 0.7em">
+
+<br>
+
+- LMS loss when $\alpha=2$
+- Huber-loss, when $\alpha=1$
+- Tukey-loss, when $\alpha=-\infty$
+
+</div>
+
+<div id="references" style="margin: -60px 0 0 0">
+
+J. T. Barron, “A General and Adaptive Robust Loss Function,” in 2019 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR), Jun. 2019, pp. 4326–4334. doi: 10.1109/CVPR.2019.00446.
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Fitness space, no outliers
+
+<div id=fleft>
+
+![Loss space](figures/Loss_space.svg)<!-- .element style="width: 800px" -->
+
+</div>
+
+<div id=fright>
+
+- No outliers
+- L2 loss function
+- White filled circles = anchors
+- Black wedge = True location
+- Blue circles = measured distances
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Fitness space, one outlier
+
+<div id=fleft>
+
+![Loss space](figures/One_outlier_L2_0.svg)<!-- .element style="width: 800px" -->
+
+</div>
+
+<div id=fright>
+
+- One outlier
+- L2 loss function
+- White filled circles = anchors
+- Black wedge = True location
+- Blue cicles = measured distances
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Fitness space, one outlier
+
+<div id=fleft>
+
+![Loss space](figures/One_outlier_Huber_1.svg)<!-- .element style="width: 800px" -->
+
+</div>
+
+<div id=fright>
+
+- One outlier
+- Huber loss function
+- White filled circles = anchors
+- Black wedge = True location
+- Blue cicles = measured distances
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+
+### Fitness space, one outlier
+
+<div id=fleft>
+
+![Loss space](figures/One_outlier_Tukey_4.svg)<!-- .element style="width: 600px" -->
+
+</div>
+
+<div id=fright>
+
+- One outlier
+- Tukey loss function
+- White filled circles = anchors
+- Black wedge = True location
+- Blue cicles = measured distances
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+
+### Gradient descent, with outlier
+
+<div id=fleft>
+    
+![Loss space](figures/Gradient_descent.svg)<!-- .element style="width: 600px" -->
+
+</div>
+
+<div id=fright>
+
+- Blue wedge = starting point and true position
+- Red path = gradient descent iteration with outlier
+- Green wedge = with $L_2$
+- Red wedge = with $L_2$ and outlier
+- Black wedge = with a robust loss
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Outlier vs robustness
+
+</script></section></section><section ><section data-markdown><script type="text/template">
+# Robot positioning with GTSAM
+</script></section><section data-markdown><script type="text/template">
+### GT-SAM
+
+- Georgia Tech Smoothing And Mapping.
+- Open source, LGPL, somewhat documented
+- A complete library for FG, particularly for positioning. SLAM + other methods
+- Written in C/C++ but has interfaces to Python and MATLAB
+- Supports Robust loss functions: Huber, Tukey, add more 
+- Fast non-linear solvers, including Gauss-Newton and Levenberg-Marquart
+</script></section><section data-markdown><script type="text/template">
+#### Iterative SAM
+
+![iSAM](figures/iSAM.png)
+
+<div ir=references>
+M. Kaess, H. Johannsson, R. Roberts, V. Ila, J. J. Leonard, and F. Dellaert, “iSAM2: Incremental smoothing and mapping using the Bayes tree,” The International Journal of Robotics Research, vol. 31, no. 2, pp. 216–235, Feb. 2012, doi: 10.1177/0278364911430419.
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Case study: Robot positioning
+
+![robot track](figures/TB_robot_track.svg)<!-- .element style="width:750px"--> 
+
+<div id=ref> 
+
+M. Elsanhoury et al., “Precise Indoor Positioning System for Mobile Robots via Smoothed UWB/IMU Sensor Fusion,” in 2023 13th International Conference on Indoor Positioning and Indoor Navigation (IPIN), Sep. 2023, pp. 1–6. doi: 10.1109/IPIN57070.2023.10332542.
+
+</div>
+</script></section><section data-markdown><script type="text/template">
+### Laboratory
+
+![TB1](figures/TB1.png)
+![robot track](figures/decawave.png) <!-- .element style="position:absolute; top:400px; left:10px;height=50px" -->
+![Omron](figures/Omron_LD_small.png) <!-- .element style="position:absolute; top:400px; right:10px;height=50px;width=50px;" -->
+
+</script></section><section data-markdown><script type="text/template">### Sensor data - rangess
+
+![sensor_data](figures/Sensor_data.svg)
+</script></section><section data-markdown><script type="text/template">
+### GTSAM noise models
+
+```python [] 
+# Set Noise parameters
+prior_sigmas = gtsam.Point3(1, 1, math.pi)
+odo_sigmas = gtsam.Point3(0.1, 0.1, math.pi)
+sigmaR = 0.1        # range standard deviation
+
+prior_noise = NM.Diagonal.Sigmas(prior_sigmas)  # prior
+odo_noise = NM.Diagonal.Sigmas(odo_sigmas)     # odometry
+gaussian = NM.Isotropic.Sigma(1, sigmaR)     # non-robust
+tukey = NM.Robust.Create(NM.mEstimator.Tukey.Create(15), gaussian)  # robust
+range_noise = tukey if robust else gaussian
+```
+</script></section><section data-markdown><script type="text/template">
+### Initialization 
+
+```Python [1-4|6|7|8-9|10-11|12]
+def initialize_isam():
+    # Initialize iSAM
+    isam = gtsam.ISAM2()
+    return(isam)
+
+def initialize_fg():
+    new_factors = gtsam.NonlinearFactorGraph()
+    pose0 = Pose2(lms_solutions[0,0], lms_solutions[0,1], 0)
+    new_factors.addPriorPose2(0, pose0, prior_noise)
+    initial = gtsam.Values()
+    initial.insert(0, pose0)
+    return new_factors, initial, pose0
+```</script></section><section data-markdown><script type="text/template">
+### Landmarks (UWB-anchors)
+
+```python
+    landmark_noise = NM.Isotropic.Sigma(2, 0.05)  # accurate LM prior
+    for i, anchorid in enumerate(anchors['id']):
+        landmark_key = gtsam.symbol('L', int(anchorid, 16))
+        landmark=gtsam.PriorFactorPoint2(landmark_key, 
+                        Point2(anchors['pos'][i,:2]), 
+                        landmark_noise)
+        new_factors.add(landmark)
+        initial.insert(landmark_key, anchors['pos'][i,:2])
+```
+</script></section><section data-markdown><script type="text/template">
+### Adding range factors
+
+```python [|2|5|6|7-10|10-11]
+# Add range factors
+ranges,variance=get_measurements(pos.distances, i+N0)  
+# {'9696': 12.3, '0E8F': 8.47, '19AD': 8.93, 'CB09': 2.78}
+for anchor_id, pseudorange in ranges.items():
+    landmark_key = gtsam.symbol('L', int(anchor_id, 16))
+    sigma=np.sqrt(variance[anchor_id])
+    gaussian = NM.Isotropic.Sigma(1, sigma)     # non-robust
+    tukey = NM.Robust.Create(NM.mEstimator.Tukey.Create(15), 
+                             gaussian)
+    range_noise = tukey if robust else gaussian
+    range_factor = gtsam.RangeFactor2D(i, landmark_key, 
+                                pseudorange, range_noise)
+    new_factors.add(range_factor)
+```
+</script></section><section data-markdown><script type="text/template">
+### The track 
+
+![Robot track](figures/Robot_tract_wLMS_vs_FG.svg)
+
+<div id=medium>
+
+ - Green = wLMS solution
+ - Red = FG solution with Tukey loss function
+
+</div> 
+</script></section><section data-markdown><script type="text/template">
+### Results
+
+Method | Points | Time | RMSE
+-------|--------|----- | ----
+FG-Tukey    |   900  |  0.48 s    | 0.38 m
+FG-LMS    |   900  |  0.47 s    | 0.48 m
+wLMS   |   900  |  0.31 s    | 0.7 m
+Pub*    |   ?    |  ?         | 0.1 m
+
+<div id=references> 
+    
+*Kalman filter (EKF) with Sensor fusion Xsens IMU and Rauch-Tung-Striebel (RTS) Smoother
+
+</div>
+</script></section></section><section  data-markdown><script type="text/template">
+### Summary
+
+<div id=medium>
+
+ - Robust methods are necessary in case of outliers or non-gaussian noise
+ - Some new methods are needed in the toolbox
+    - Outlier detection
+    - Robust statistics
+    - RANSAC, FG
+ - Due to simplicity, Gradient descent is a great tool to study problems
+ - Factor graph is versatile and intuitive way to solve various state estimation problems with sensor fusion
+ - Python is excellent tool for machine learning, and it can be also fast if used wisely
+
+</div>
+</script></section><section  data-markdown><script type="text/template">
+
+# END
+
+
+
+
+
+<link rel="stylesheet" href="plugin/highlight/monokai.css">
+<link rel="stylesheet" href="plugin/chalkboard/style.css">
+<link rel="stylesheet" href="style.css">
+
+
+
+
+</script></section></div>
+    </div>
+
+    <script src="./dist/reveal.js"></script>
+
+    <script src="./plugin/markdown/markdown.js"></script>
+    <script src="./plugin/highlight/highlight.js"></script>
+    <script src="./plugin/zoom/zoom.js"></script>
+    <script src="./plugin/notes/notes.js"></script>
+    <script src="./plugin/math/math.js"></script>
+    <script>
+      function extend() {
+        var target = {};
+        for (var i = 0; i < arguments.length; i++) {
+          var source = arguments[i];
+          for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+              target[key] = source[key];
+            }
+          }
+        }
+        return target;
+      }
+
+      // default options to init reveal.js
+      var defaultOptions = {
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        transition: 'default', // none/fade/slide/convex/concave/zoom
+        slideNumber: true,
+        plugins: [
+          RevealMarkdown,
+          RevealHighlight,
+          RevealZoom,
+          RevealNotes,
+          RevealMath
+        ]
+      };
+
+      // options from URL query string
+      var queryOptions = Reveal().getQueryHash() || {};
+
+      var options = extend(defaultOptions, {}, queryOptions);
+    </script>
+
+
+    <script>
+      Reveal.initialize(options);
+    </script>
+  </body>
+</html>
